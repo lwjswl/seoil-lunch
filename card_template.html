@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Pretendard', sans-serif; 
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* 📸 사진 규격 */
+        .card {
+            width: 1080px;
+            height: 1440px;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* 📅 실시간 날짜 영역 */
+        .date-text {
+            position: absolute;
+            top: 95px;
+            left: 90px;
+            font-size: 42px;
+            font-weight: 700;
+            color: #777777;
+            letter-spacing: -0.5px;
+        }
+
+        /* 🍽️ 메뉴 텍스트 박스 공통 스타일 */
+        .menu-box {
+            position: absolute;
+            left: 100px;
+            width: 880px;
+            height: 280px; /* 글자가 여러 줄이 되어도 이 안에서 정렬 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 52px; 
+            font-weight: 800;
+            color: #111111;
+            line-height: 1.6;
+            word-break: keep-all; /* 단어 단위로 줄바꿈되어 깔끔함 */
+        }
+
+        /* 1️⃣ 첫 번째 장: 누들 & 한식 배경 */
+        #card1 {
+            background-image: url('background1.png');
+            background-size: cover;
+        }
+        /* 각 코너 아이콘/타이틀 아래 빈 공간의 절대 좌표 */
+        #card1 .pos-noodle { top: 480px; }  
+        #card1 .pos-hansik { top: 1020px; } 
+
+        /* 2️⃣ 두 번째 장: 튀김 & 라면 배경 */
+        #card2 {
+            background-image: url('background2.png');
+            background-size: cover;
+        }
+        #card2 .pos-twigim { top: 550px; }  
+        #card2 .pos-ramen  { top: 1020px; } 
+    </style>
+</head>
+<body>
+
+    <div class="card" id="card1">
+        <div class="date-text">{{CURRENT_DATE}}</div>
+        <div class="menu-box pos-noodle">{{NOODLE_MENU}}</div>
+        <div class="menu-box pos-hansik">{{HANSIK_MENU}}</div>
+    </div>
+
+    <div class="card" id="card2">
+        <div class="date-text">{{CURRENT_DATE}}</div>
+        <div class="menu-box pos-twigim">{{TWIGIM_MENU}}</div>
+        <div class="menu-box pos-ramen">{{RAMEN_MENU}}</div>
+    </div>
+
+</body>
+</html>

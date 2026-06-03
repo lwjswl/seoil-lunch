@@ -1,0 +1,14 @@
+.env
+seoil-hakshikbot-826147efed61.json
+
+#cash
+__pycache__/
+venv/
+.pytest_cache/
+
+menu.jpg
+temp_result.html
+inst_feed_1.png
+inst_feed_2.png
+background1.png
+background2.png
