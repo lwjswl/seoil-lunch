@@ -23,6 +23,10 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    # 5. 내 파이썬 파일 실행하기!
     - name: Run Python Script
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
       run: python main.py
