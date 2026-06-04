@@ -26,6 +26,11 @@ jobs:
     - name: Install Playwright Browsers
       run: playwright install --with-deps
 
+    - name: Create GCP Service Account JSON File
+      run: |
+        echo '${{ secrets.GCP_SA_KEY }}' > seoil-hakshikbot-826147efed61.json
+
+    # 5. 내 파이썬 파일 실행하기!
     - name: Run Python Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
