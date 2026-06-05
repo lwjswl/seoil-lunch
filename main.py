@@ -26,7 +26,8 @@ GCP_KEY_PATH = "seoil-hakshikbot-826147efed61.json"
 BUCKET_NAME = "seoil-haksik-bucket"
 
 # 📅 날짜 및 요일 구하기
-today_dt = datetime.today()
+KST = timezone(timedelta(hours=9))
+today_dt = datetime.now(KST)
 weekdays = ["월", "화", "수", "목", "금", "토", "일"]
 current_weekday_idx = today_dt.weekday()
 today_target = weekdays[current_weekday_idx]
