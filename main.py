@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 from google import genai
 from google.genai import types
