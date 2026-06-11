@@ -2,7 +2,7 @@ name: 서버 자동 실행기
 
 on:
   schedule:
-    - cron: '0 22 * * *'
+    - cron: '47 21 * * *'
   workflow_dispatch: # 이 한 줄을 넣으면 깃허브 사이트에서 수동으로도 즉시 실행 가능해요!
 
 jobs:
