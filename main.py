@@ -250,7 +250,7 @@ try:
 
     # 🚀 인스타그램 Graph API 멀티 이미지 업로드
     print("🚀 인스타그램 업로드 프로세스 시작...")
-    caption = f"🍱 {display_date}\n오늘의 학식입니다!"
+    caption = f"🍱 {display_date}\n오늘의 학식입니다!\n#서일 #서일대 #학식"
     base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
     
     res1 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_1, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
