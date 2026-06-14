@@ -129,48 +129,29 @@ if not target_url:
 # Playwright로 게시글 열어서 JS 렌더링 후 이미지 URL 추출
 from playwright.sync_api import sync_playwright
 
-img_url = None
-print(f"🌐 [DEBUG] Playwright로 게시글 접속 중: {target_url}")
+print(f"🌐 Playwright로 게시글 스크린샷 캡처 중: {target_url}")
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
     page.goto(target_url, wait_until="networkidle")
 
-    img_tags = page.query_selector_all('img')
-    print(f"  🖼️ [DEBUG] JS 렌더링 후 img 태그 수: {len(img_tags)}")
-    for img in img_tags:
-        src = img.get_attribute('src') or ''
-        data_src = img.get_attribute('data-src') or ''
-        alt = img.get_attribute('alt') or ''
-        print(f"    src='{src}' | data-src='{data_src}' | alt='{alt}'")
-
-    for img in img_tags:
-        src = img.get_attribute('src') or ''
-        data_src = img.get_attribute('data-src') or ''
-        final_src = data_src or src
-        if not final_src or final_src.startswith('data:'):
-            continue
-        img_url = final_src if final_src.startswith('http') else f"https://www.seoil.ac.kr{final_src}"
-        break
+    # 본문 영역 캡처 (없으면 전체 페이지)
+    content_el = page.query_selector('.artclView') or page.query_selector('.board-view-content') or page.query_selector('.view-con') or page.query_selector('.bbsV-cont')
+    if content_el:
+        print("  ✅ 본문 영역 찾음 → 본문만 캡처")
+        content_el.screenshot(path="menu.png")
+    else:
+        print("  ⚠️ 본문 영역 못 찾음 → 전체 페이지 캡처")
+        page.screenshot(path="menu.png", full_page=True)
 
     browser.close()
 
-if not img_url:
-    print("🚨 오늘자 식단표 이미지가 게시판에 아직 업로드되지 않았습니다. 종료합니다.")
-    exit()
+print("✅ 식단표 스크린샷 캡처 완료")
 
-print(f"✅ 식단표 이미지 URL 확인: {img_url}")
-
-# 식단표 다운로드
-img_data = requests.get(img_url, headers=headers).content
-filename = "menu.jpg"
-with open(filename, "wb") as handler:
-    handler.write(img_data)
-
-with open(filename, "rb") as f:
+with open("menu.png", "rb") as f:
     image_bytes = f.read()
 
-image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
 
 # 프롬프트 구성 (학교 자체 재량휴업 등 2차 필터링용으로 구조 유지)
 prompt = f"""
