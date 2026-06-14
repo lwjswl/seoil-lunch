@@ -104,23 +104,19 @@ response = requests.get(URL, headers=headers)
 soup = BeautifulSoup(response.text, 'html.parser')
 subjects = soup.find_all('td', class_='td-subject')
 
-# 🌐 서일대학교 학식 게시판 크롤링 시작
-print("🌐 서일대학교 학식 게시판 확인 중...")
-URL = "https://www.seoil.ac.kr/seoil/598/subview.do" 
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
- 
-response = requests.get(URL, headers=headers)
-soup = BeautifulSoup(response.text, 'html.parser')
-subjects = soup.find_all('td', class_='td-subject')
- 
 img_url = None
+print("=" * 50)
+print("🐛 [DEBUG] 게시판 글 목록:")
 for sub in subjects:
     link_tag = sub.find('a')
     if not link_tag:
         continue
     title_text = link_tag.find('strong').get_text().strip() if link_tag.find('strong') else link_tag.get_text().strip()
+    print(f"  → title_text: '{title_text}'")
     
     if any(keyword in title_text for keyword in ['학생식당', '메뉴', '식단']):
+        print(f"  ✅ 매칭됨: '{title_text}'")
+        print("=" * 50)
         sub_url = link_tag.get('href')
         full_url = f"https://www.seoil.ac.kr{sub_url}"
         
@@ -132,13 +128,13 @@ for sub in subjects:
         for img in img_tags:
             # ✅ [수정] data-src(지연 로딩) 우선, 없으면 src 사용
             src = img.get('data-src') or img.get('src', '')
- 
+
             # ✅ [수정] base64 데이터 URI 및 불필요한 이미지 건너뜀
             if not src or src.startswith('data:'):
                 continue
-            if any(x in src.lower() for x in ['logo', 'icon', 'menu', 'main', 'head', 'foot']):
+            if any(x in src.lower() for x in ['logo', 'icon', 'main', 'head', 'foot']):
                 continue
- 
+
             img_url = src if src.startswith('http') else f"https://www.seoil.ac.kr{src}"
             break
         if img_url:
@@ -147,6 +143,8 @@ for sub in subjects:
 if not img_url:
     print("🚨 오늘자 식단표 이미지가 게시판에 아직 업로드되지 않았습니다. 종료합니다.")
     exit()
+
+print(f"✅ 식단표 이미지 URL 확인: {img_url}")
 
 # 식단표 다운로드
 img_data = requests.get(img_url, headers=headers).content
@@ -254,58 +252,52 @@ try:
         
     print("🎉 카드뉴스 제작 완료! 인스타에 올리러 갑시다!")
 
+    # ⛔ [DEBUG] 인스타그램 업로드 임시 비활성화
+    print("⛔ [DEBUG] 인스타그램 업로드 건너뜀 (디버깅 중)")
+
     # ☁️ 구글 클라우드 스토리지(GCS) 자동 업로드
-    print("☁️ 구글 클라우드 스토리지(GCS)에 임시 이미지 업로드 중...")
-    storage_client = storage.Client.from_service_account_json(GCP_KEY_PATH)
-    bucket = storage_client.bucket(BUCKET_NAME)
-
-    today_str = today_dt.strftime('%Y%m%d')
-    blob1 = bucket.blob(f"feeds/{today_str}_feed_1.png")
-    blob1.upload_from_filename("inst_feed_1.png")
-    IMAGE_URL_1 = blob1.public_url
-
-    blob2 = bucket.blob(f"feeds/{today_str}_feed_2.png")
-    blob2.upload_from_filename("inst_feed_2.png")
-    IMAGE_URL_2 = blob2.public_url
-
-    # 🚀 인스타그램 Graph API 멀티 이미지 업로드
-    print("🚀 인스타그램 업로드 프로세스 시작...")
-    caption = f"🍱 {display_date}\n오늘의 학식입니다!\n#서일 #서일대 #학식"
-    base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
-    
-    res1 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_1, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
-    container_id1 = res1.get('id')
-    
-    res2 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_2, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
-    container_id2 = res2.get('id')
-    
-    if container_id1 and container_id2:
-        carousel_res = requests.post(f"{base_url}/media", data={
-            'media_type': 'CAROUSEL',
-            'children': f"[{container_id1},{container_id2}]",
-            'caption': caption,
-            'access_token': ACCESS_TOKEN
-        }).json()
-        parent_container_id = carousel_res.get('id')
-        
-        if parent_container_id:
-            time.sleep(5) 
-            publish_res = requests.post(f"{base_url}/media_publish", data={'creation_id': parent_container_id, 'access_token': ACCESS_TOKEN}).json()
-            
-            if "id" in publish_res:
-                print(f"✨ 인스타그램 업로드 완료! (Post ID: {publish_res['id']})")
-                
-                # 🗑️ 용량 제로화: 업로드 성공 즉시 GCS에 올린 파일 삭제
-                print("🗑️ 클라우드 용량 확보를 위해 임시 이미지를 삭제합니다...")
-                blob1.delete()
-                blob2.delete()
-                print("✨ GCS 용량 초기화 완료! (언제나 0MB 유지)")
-            else:
-                print(f"❌ 최종 발행 실패: {publish_res}")
-        else:
-            print(f"❌ 캐러셀 생성 실패: {carousel_res}")
-    else:
-        print(f"❌ 미디어 컨테이너 생성 실패: {res1}, {res2}")
+    # print("☁️ 구글 클라우드 스토리지(GCS)에 임시 이미지 업로드 중...")
+    # storage_client = storage.Client.from_service_account_json(GCP_KEY_PATH)
+    # bucket = storage_client.bucket(BUCKET_NAME)
+    #     # today_str = today_dt.strftime('%Y%m%d')
+    # blob1 = bucket.blob(f"feeds/{today_str}_feed_1.png")
+    # blob1.upload_from_filename("inst_feed_1.png")
+    # IMAGE_URL_1 = blob1.public_url
+    #     # blob2 = bucket.blob(f"feeds/{today_str}_feed_2.png")
+    # blob2.upload_from_filename("inst_feed_2.png")
+    # IMAGE_URL_2 = blob2.public_url
+    #     # 🚀 인스타그램 Graph API 멀티 이미지 업로드
+    # print("🚀 인스타그램 업로드 프로세스 시작...")
+    # caption = f"🍱 {display_date}\n오늘의 학식입니다!\n#서일 #서일대 #학식"
+    # base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
+    #     # res1 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_1, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
+    # container_id1 = res1.get('id')
+    #     # res2 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_2, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
+    # container_id2 = res2.get('id')
+    #     # if container_id1 and container_id2:
+    # carousel_res = requests.post(f"{base_url}/media", data={
+    # 'media_type': 'CAROUSEL',
+    # 'children': f"[{container_id1},{container_id2}]",
+    # 'caption': caption,
+    # 'access_token': ACCESS_TOKEN
+    # }).json()
+    # parent_container_id = carousel_res.get('id')
+    #     # if parent_container_id:
+    # time.sleep(5) 
+    # publish_res = requests.post(f"{base_url}/media_publish", data={'creation_id': parent_container_id, 'access_token': ACCESS_TOKEN}).json()
+    #     # if "id" in publish_res:
+    # print(f"✨ 인스타그램 업로드 완료! (Post ID: {publish_res['id']})")
+    #                 # 🗑️ 용량 제로화: 업로드 성공 즉시 GCS에 올린 파일 삭제
+    # print("🗑️ 클라우드 용량 확보를 위해 임시 이미지를 삭제합니다...")
+    # blob1.delete()
+    # blob2.delete()
+    # print("✨ GCS 용량 초기화 완료! (언제나 0MB 유지)")
+    # else:
+    # print(f"❌ 최종 발행 실패: {publish_res}")
+    # else:
+    # print(f"❌ 캐러셀 생성 실패: {carousel_res}")
+    # else:
+    # print(f"❌ 미디어 컨테이너 생성 실패: {res1}, {res2}")
 
 except Exception as e:
     print(f"❌ 오류 발생: {e}")
