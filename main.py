@@ -125,16 +125,14 @@ for sub in subjects:
         detail_soup = BeautifulSoup(detail_response.text, 'html.parser')
         
         img_tags = detail_soup.find_all('img')
+        print(f"  🖼️ [DEBUG] '{title_text}' 게시글 img 태그 수: {len(img_tags)}")
         for img in img_tags:
-            # ✅ [수정] data-src(지연 로딩) 우선, 없으면 src 사용
-            src = img.get('data-src') or img.get('src', '')
+            print(f"    전체 속성: {img.attrs}")
 
-            # ✅ [수정] base64 데이터 URI 및 불필요한 이미지 건너뜀
+        for img in img_tags:
+            src = img.get('data-src') or img.get('src', '')
             if not src or src.startswith('data:'):
                 continue
-            if any(x in src.lower() for x in ['logo', 'icon', 'main', 'head', 'foot']):
-                continue
-
             img_url = src if src.startswith('http') else f"https://www.seoil.ac.kr{src}"
             break
         if img_url:
