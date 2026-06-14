@@ -104,6 +104,15 @@ response = requests.get(URL, headers=headers)
 soup = BeautifulSoup(response.text, 'html.parser')
 subjects = soup.find_all('td', class_='td-subject')
 
+# 🌐 서일대학교 학식 게시판 크롤링 시작
+print("🌐 서일대학교 학식 게시판 확인 중...")
+URL = "https://www.seoil.ac.kr/seoil/598/subview.do" 
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+ 
+response = requests.get(URL, headers=headers)
+soup = BeautifulSoup(response.text, 'html.parser')
+subjects = soup.find_all('td', class_='td-subject')
+ 
 img_url = None
 for sub in subjects:
     link_tag = sub.find('a')
@@ -121,10 +130,17 @@ for sub in subjects:
         
         img_tags = detail_soup.find_all('img')
         for img in img_tags:
-            src = img.get('src', '')
-            if src and not any(x in src.lower() for x in ['logo', 'icon', 'menu', 'main', 'head', 'foot']):
-                img_url = src if src.startswith('http') else f"https://www.seoil.ac.kr{src}"
-                break
+            # ✅ [수정] data-src(지연 로딩) 우선, 없으면 src 사용
+            src = img.get('data-src') or img.get('src', '')
+ 
+            # ✅ [수정] base64 데이터 URI 및 불필요한 이미지 건너뜀
+            if not src or src.startswith('data:'):
+                continue
+            if any(x in src.lower() for x in ['logo', 'icon', 'menu', 'main', 'head', 'foot']):
+                continue
+ 
+            img_url = src if src.startswith('http') else f"https://www.seoil.ac.kr{src}"
+            break
         if img_url:
             break
 
