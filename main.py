@@ -104,7 +104,8 @@ response = requests.get(URL, headers=headers)
 soup = BeautifulSoup(response.text, 'html.parser')
 subjects = soup.find_all('td', class_='td-subject')
 
-img_url = None
+# 매칭된 첫 번째 식단 게시글 URL 찾기
+target_url = None
 print("=" * 50)
 print("🐛 [DEBUG] 게시판 글 목록:")
 for sub in subjects:
@@ -113,30 +114,46 @@ for sub in subjects:
         continue
     title_text = link_tag.find('strong').get_text().strip() if link_tag.find('strong') else link_tag.get_text().strip()
     print(f"  → title_text: '{title_text}'")
-    
+
     if any(keyword in title_text for keyword in ['학생식당', '메뉴', '식단']):
         print(f"  ✅ 매칭됨: '{title_text}'")
         print("=" * 50)
         sub_url = link_tag.get('href')
-        full_url = f"https://www.seoil.ac.kr{sub_url}"
-        
-        time.sleep(1)
-        detail_response = requests.get(full_url, headers=headers)
-        detail_soup = BeautifulSoup(detail_response.text, 'html.parser')
-        
-        img_tags = detail_soup.find_all('img')
-        print(f"  🖼️ [DEBUG] '{title_text}' 게시글 img 태그 수: {len(img_tags)}")
-        for img in img_tags:
-            print(f"    전체 속성: {img.attrs}")
+        target_url = f"https://www.seoil.ac.kr{sub_url}"
+        break
 
-        for img in img_tags:
-            src = img.get('data-src') or img.get('src', '')
-            if not src or src.startswith('data:'):
-                continue
-            img_url = src if src.startswith('http') else f"https://www.seoil.ac.kr{src}"
-            break
-        if img_url:
-            break
+if not target_url:
+    print("🚨 오늘자 식단표 게시글을 찾지 못했습니다. 종료합니다.")
+    exit()
+
+# Playwright로 게시글 열어서 JS 렌더링 후 이미지 URL 추출
+from playwright.sync_api import sync_playwright
+
+img_url = None
+print(f"🌐 [DEBUG] Playwright로 게시글 접속 중: {target_url}")
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
+    page.goto(target_url, wait_until="networkidle")
+
+    img_tags = page.query_selector_all('img')
+    print(f"  🖼️ [DEBUG] JS 렌더링 후 img 태그 수: {len(img_tags)}")
+    for img in img_tags:
+        src = img.get_attribute('src') or ''
+        data_src = img.get_attribute('data-src') or ''
+        alt = img.get_attribute('alt') or ''
+        print(f"    src='{src}' | data-src='{data_src}' | alt='{alt}'")
+
+    for img in img_tags:
+        src = img.get_attribute('src') or ''
+        data_src = img.get_attribute('data-src') or ''
+        final_src = data_src or src
+        if not final_src or final_src.startswith('data:'):
+            continue
+        img_url = final_src if final_src.startswith('http') else f"https://www.seoil.ac.kr{final_src}"
+        break
+
+    browser.close()
 
 if not img_url:
     print("🚨 오늘자 식단표 이미지가 게시판에 아직 업로드되지 않았습니다. 종료합니다.")
