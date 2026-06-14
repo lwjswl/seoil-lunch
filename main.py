@@ -249,11 +249,14 @@ try:
     bucket = storage_client.bucket(BUCKET_NAME)
 
     today_str = today_dt.strftime('%Y%m%d')
-    blob1 = bucket.blob(f"feeds/{today_str}_feed_1.png")
+    unique_suffix = int(time.time())
+
+    # 파일 이름 뒤에 타임스탬프를 붙여서 매번 고유한 URL이 생성되도록 만듭니다.
+    blob1 = bucket.blob(f"feeds/{today_str}_feed_1_{unique_suffix}.png")
     blob1.upload_from_filename("inst_feed_1.png")
     IMAGE_URL_1 = blob1.public_url
 
-    blob2 = bucket.blob(f"feeds/{today_str}_feed_2.png")
+    blob2 = bucket.blob(f"feeds/{today_str}_feed_2_{unique_suffix}.png")
     blob2.upload_from_filename("inst_feed_2.png")
     IMAGE_URL_2 = blob2.public_url
 
