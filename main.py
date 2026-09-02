@@ -40,7 +40,7 @@ today_dt = datetime.now(KST)
 weekdays = ["월", "화", "수", "목", "금", "토", "일"]
 current_weekday_idx = today_dt.weekday()
 today_target = weekdays[current_weekday_idx]
-display_date = f"{today_dt.strftime('%Y년 %m월 %d일')} {today_target}요일"
+display_date = f"{today_dt.strftime('%Y년 %m월 %d일')} ({today_target})"
 
 if current_weekday_idx >= 5:
     print(f"📢 오늘은 {today_target}요일(주말)이므로 인스타그램 카드뉴스를 제작하지 않습니다.")
