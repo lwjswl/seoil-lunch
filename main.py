@@ -219,93 +219,85 @@ try:
         print(f"📢 제미나이 분석 결과 오늘({display_date})은 학교 자체 휴무일입니다. 실행을 중단합니다.")
         exit()
 
-    menu_dict = {item['corner']: item['menu_name'].replace('\n', '<br>') for item in cleaned_data.get("menus", [])}
-    
-    noodle_val = menu_dict.get("누들", "미운영 또는 품절")
-    hansik_val = menu_dict.get("한식", "미운영 또는 품절")
-    twigim_val = menu_dict.get("튀김", "미운영 또는 품절")
-    ramen_val  = menu_dict.get("라면", "미운영 또는 품절")
+    # 💡 [핵심] 운영하는 코너만 동적으로 HTML 블록을 생성합니다 (2개면 2단, 3개면 3단으로 자동 렌더링)
+    menu_html_blocks = ""
+    for item in cleaned_data.get("menus", []):
+        corner = item.get("corner")
+        menu_name = item.get("menu_name", "").strip().replace('\n', '<br>')
+        
+        # '미운영'이나 '품절'이 포함되어 있거나 비어있으면 제외 (필요에 따라 조건 수정 가능)
+        if menu_name and "미운영" not in menu_name and "품절" not in menu_name:
+            menu_html_blocks += f"""
+            <div class="corner-column">
+                <div class="corner-title">{corner} 코너</div>
+                <div class="menu-content">{menu_name}</div>
+            </div>
+            """
 
-    with open("card_template.html", "r", encoding="utf-8") as f:
+    template_path = os.path.join(current_dir, "card_template.html")
+    with open(template_path, "r", encoding="utf-8") as f:
         template_html = f.read()
 
+    # {{MENU_CONTAINERS}} 한 곳에 조립한 블록을 통째로 밀어넣습니다.
     rendered_html = template_html.replace("{{CURRENT_DATE}}", display_date)\
-                                 .replace("{{NOODLE_MENU}}", noodle_val)\
-                                 .replace("{{HANSIK_MENU}}", hansik_val)\
-                                 .replace("{{TWIGIM_MENU}}", twigim_val)\
-                                 .replace("{{RAMEN_MENU}}", ramen_val)
+                                 .replace("{{MENU_CONTAINERS}}", menu_html_blocks)
 
-    with open("temp_result.html", "w", encoding="utf-8") as f:
+    result_path = os.path.join(current_dir, "temp_result.html")
+    with open(result_path, "w", encoding="utf-8") as f:
         f.write(rendered_html)
 
-    print("📸 고화질 인스타 피드 이미지 생성 시작...")
+    print("📸 고화질 인스타 단일 이미지 생성 시작...")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(f"file://{os.path.abspath('temp_result.html')}")
+        page.goto(f"file://{result_path}")
         page.set_viewport_size({"width": 1080, "height": 1440})
         
-        page.locator("#card1").screenshot(path="inst_feed_1.png")
-        page.locator("#card2").screenshot(path="inst_feed_2.png")
+        # 🔥 이제 카드 1장(#main-card)만 캡처합니다.
+        page.locator("#main-card").screenshot(path="inst_feed.png")
         browser.close()
         
     print("🎉 카드뉴스 제작 완료! 인스타에 올리러 갑시다!")
 
-    # ☁️ 구글 클라우드 스토리지(GCS) 자동 업로드
+    # ☁️ 구글 클라우드 스토리지(GCS) 단일 이미지 업로드
     print("☁️ 구글 클라우드 스토리지(GCS)에 임시 이미지 업로드 중...")
-    storage_client = storage.Client.from_service_account_json(GCP_KEY_PATH)
+    storage_client = storage.Client.from_service_account_json(os.path.join(current_dir, GCP_KEY_PATH))
     bucket = storage_client.bucket(BUCKET_NAME)
 
     today_str = today_dt.strftime('%Y%m%d')
-    unique_suffix = int(time.time())
+    blob = bucket.blob(f"feeds/{today_str}_feed.png")
+    blob.upload_from_filename("inst_feed.png")
+    IMAGE_URL = blob.public_url
 
-    # 파일 이름 뒤에 타임스탬프를 붙여서 매번 고유한 URL이 생성되도록 만듭니다.
-    blob1 = bucket.blob(f"feeds/{today_str}_feed_1_{unique_suffix}.png")
-    blob1.upload_from_filename("inst_feed_1.png")
-    IMAGE_URL_1 = blob1.public_url
-
-    blob2 = bucket.blob(f"feeds/{today_str}_feed_2_{unique_suffix}.png")
-    blob2.upload_from_filename("inst_feed_2.png")
-    IMAGE_URL_2 = blob2.public_url
-
-    # 🚀 인스타그램 Graph API 멀티 이미지 업로드
+    # 🚀 인스타그램 Graph API 단일 이미지 업로드
     print("🚀 인스타그램 업로드 프로세스 시작...")
-    caption = f"🍱 {display_date}\n오늘의 학식입니다!\n#서일 #서일대 #학식"
+    caption = f"🍱 {display_date} 오늘의 서일대 학식 안내\n\n오늘의 맛있는 학식 메뉴를 확인해보세요! #서일대 #서일대학교 #학식"
     base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
-
-    res1 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_1, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
-    container_id1 = res1.get('id')
-
-    res2 = requests.post(f"{base_url}/media", data={'image_url': IMAGE_URL_2, 'is_carousel_item': 'true', 'access_token': ACCESS_TOKEN}).json()
-    container_id2 = res2.get('id')
-
-    if container_id1 and container_id2:
-        carousel_res = requests.post(f"{base_url}/media", data={
-            'media_type': 'CAROUSEL',
-            'children': f"[{container_id1},{container_id2}]",
-            'caption': caption,
+    
+    # 캐러셀용 복잡한 과정 없이 /media 에 이미지 URL과 캡션을 묶어서 한 번에 요청
+    res = requests.post(f"{base_url}/media", data={
+        'image_url': IMAGE_URL, 
+        'caption': caption,
+        'access_token': ACCESS_TOKEN
+    }).json()
+    
+    container_id = res.get('id')
+    
+    if container_id:
+        time.sleep(5) 
+        publish_res = requests.post(f"{base_url}/media_publish", data={
+            'creation_id': container_id, 
             'access_token': ACCESS_TOKEN
         }).json()
-        parent_container_id = carousel_res.get('id')
-
-        if parent_container_id:
-            time.sleep(5)
-            publish_res = requests.post(f"{base_url}/media_publish", data={'creation_id': parent_container_id, 'access_token': ACCESS_TOKEN}).json()
-
-            if "id" in publish_res:
-                print(f"✨ 인스타그램 업로드 완료! (Post ID: {publish_res['id']})")
-
-                # 🗑️ 용량 제로화: 업로드 성공 즉시 GCS에 올린 파일 삭제
-                print("🗑️ 클라우드 용량 확보를 위해 임시 이미지를 삭제합니다...")
-                blob1.delete()
-                blob2.delete()
-                print("✨ GCS 용량 초기화 완료! (언제나 0MB 유지)")
-            else:
-                print(f"❌ 최종 발행 실패: {publish_res}")
+        
+        if "id" in publish_res:
+            print(f"✨ 인스타그램 단일 이미지 업로드 완료! (Post ID: {publish_res['id']})")
+            
+            # 🗑️ 용량 제로화
+            print("🗑️ 클라우드 용량 확보를 위해 임시 이미지를 삭제합니다...")
+            blob.delete()
+            print("✨ GCS 용량 초기화 완료! (언제나 0MB 유지)")
         else:
-            print(f"❌ 캐러셀 생성 실패: {carousel_res}")
+            print(f"❌ 최종 발행 실패: {publish_res}")
     else:
-        print(f"❌ 미디어 컨테이너 생성 실패: {res1}, {res2}")
-
-except Exception as e:
-    print(f"❌ 오류 발생: {e}")
+        print(f"❌ 미디어 컨테이너 생성 실패: {res}")
