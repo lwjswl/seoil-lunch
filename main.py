@@ -18,7 +18,7 @@ from playwright.sync_api import sync_playwright
 # True : 인스타에 업로드하지 않고 inst_feed.png 파일만 생성/확인
 # False: 실제 운영 (GCS 업로드 및 인스타그램 최종 업로드 수행)
 # ---------------------------------------------------------
-DRY_RUN = True  
+DRY_RUN = False  
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(current_dir, '.env')
