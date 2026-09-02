@@ -1,16 +1,25 @@
-import requests
-from bs4 import BeautifulSoup
+import os
+import sys
 import time
 import json
+import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
-import os
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 from google.cloud import storage
-import xml.etree.ElementTree as ET  # 특일 API(XML) 파싱용
+from playwright.sync_api import sync_playwright
 
-from dotenv import load_dotenv
+# ---------------------------------------------------------
+# 🧪 테스트 모드 설정
+# True : 인스타에 업로드하지 않고 inst_feed.png 파일만 생성/확인
+# False: 실제 운영 (GCS 업로드 및 인스타그램 최종 업로드 수행)
+# ---------------------------------------------------------
+DRY_RUN = True  
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(current_dir, '.env')
 load_dotenv(env_path)
@@ -38,6 +47,8 @@ if current_weekday_idx >= 5:
     exit()
 
 print(f"📅 작업 시작 - {display_date}")
+if DRY_RUN:
+    print("🧪 [테스트 모드 활성화] 인스타그램 업로드 없이 이미지 파일만 생성합니다.\n")
 
 # 🛠️ 추가 기능: 한국천문연구원 특일 정보 조회 API를 통한 공휴일 체크
 print("🔍 한국천문연구원 특일 API 확인 중 (법정 공휴일/선거일 등)...")
@@ -57,25 +68,22 @@ try:
     hol_res = requests.get(holiday_url, params=holiday_params, timeout=10)
     is_holiday_today = False
     
-    # API가 JSON 응답을 정상적으로 준 경우
     if hol_res.status_code == 200:
         try:
             hol_data = hol_res.json()
             items = hol_data.get('response', {}).get('body', {}).get('items', {})
             
-            if items: # 공휴일 정보가 존재할 때
+            if items:
                 item_list = items.get('item', [])
-                if isinstance(item_list, dict): # 공휴일이 한 개만 있으면 dict 형태로 옴
+                if isinstance(item_list, dict):
                     item_list = [item_list]
                     
                 for item in item_list:
-                    # locdate 형식: 20260505
                     if str(item.get('locdate')) == f"{sol_year}{sol_month}{sol_day}" and item.get('isHoliday') == 'Y':
                         print(f"📢 오늘은 법정 공휴일([{item.get('dateName')}]입니다. 코드 실행을 중단합니다.")
                         is_holiday_today = True
                         break
         except json.JSONDecodeError:
-            # API가 JSON을 요청했으나 XML로 강제 응답을 주는 경우 파싱 처리
             root = ET.fromstring(hol_res.text)
             for item in root.findall('.//item'):
                 locdate = item.find('locdate').text if item.find('locdate') is not None else ""
@@ -104,7 +112,6 @@ response = requests.get(URL, headers=headers)
 soup = BeautifulSoup(response.text, 'html.parser')
 subjects = soup.find_all('td', class_='td-subject')
 
-# 매칭된 첫 번째 식단 게시글 URL 찾기
 target_url = None
 for sub in subjects:
     link_tag = sub.find('a')
@@ -122,15 +129,12 @@ if not target_url:
     exit()
 
 # JS 렌더링
-from playwright.sync_api import sync_playwright
-
 print(f"🌐 Playwright로 게시글 스크린샷 캡처 중: {target_url}")
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={"width": 1280, "height": 900})
     page.goto(target_url, wait_until="networkidle")
 
-    # 본문 영역 캡처 (없으면 전체 페이지)
     content_el = page.query_selector('.artclView') or page.query_selector('.board-view-content') or page.query_selector('.view-con') or page.query_selector('.bbsV-cont')
     if content_el:
         print("  ✅ 본문 영역 찾음 → 본문만 캡처")
@@ -148,7 +152,6 @@ with open("menu.png", "rb") as f:
 
 image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
 
-# 프롬프트 구성 (학교 자체 재량휴업 등 2차 필터링용으로 구조 유지)
 prompt = f"""
 이 이미지는 대학 학식 식단표입니다. [{today_target}요일]에 해당하는 메뉴만 추출하세요.
 각 메뉴는 <br>로 구분해야합니다.
@@ -183,7 +186,6 @@ prompt = f"""
 
 print("🔍 제미나이 데이터 분석 및 코너 맵핑 중...")
 
-# Gemini 503 에러 대비 백오프 재시도 로직
 max_retries = 5
 base_delay = 2
 response = None
@@ -211,21 +213,17 @@ if not response:
     exit()
 
 try:
-    from playwright.sync_api import sync_playwright
     cleaned_data = json.loads(response.text)
     
-    # 제미나이 2차 검증: 이미지 내에 명시된 학교 휴무일 체크
     if cleaned_data.get("is_holiday") is True:
         print(f"📢 제미나이 분석 결과 오늘({display_date})은 학교 자체 휴무일입니다. 실행을 중단합니다.")
         exit()
 
-    # 💡 [핵심] 운영하는 코너만 동적으로 HTML 블록을 생성합니다 (2개면 2단, 3개면 3단으로 자동 렌더링)
     menu_html_blocks = ""
     for item in cleaned_data.get("menus", []):
         corner = item.get("corner")
         menu_name = item.get("menu_name", "").strip().replace('\n', '<br>')
         
-        # '미운영'이나 '품절'이 포함되어 있거나 비어있으면 제외 (필요에 따라 조건 수정 가능)
         if menu_name and "미운영" not in menu_name and "품절" not in menu_name:
             menu_html_blocks += f"""
             <div class="corner-column">
@@ -238,7 +236,6 @@ try:
     with open(template_path, "r", encoding="utf-8") as f:
         template_html = f.read()
 
-    # {{MENU_CONTAINERS}} 한 곳에 조립한 블록을 통째로 밀어넣습니다.
     rendered_html = template_html.replace("{{CURRENT_DATE}}", display_date)\
                                  .replace("{{MENU_CONTAINERS}}", menu_html_blocks)
 
@@ -253,11 +250,38 @@ try:
         page.goto(f"file://{result_path}")
         page.set_viewport_size({"width": 1080, "height": 1440})
         
-        # 🔥 이제 카드 1장(#main-card)만 캡처합니다.
-        page.locator("#main-card").screenshot(path="inst_feed.png")
+        # 카드 1장(#main-card) 캡처
+        output_image_path = os.path.join(current_dir, "inst_feed.png")
+        page.locator("#main-card").screenshot(path=output_image_path)
         browser.close()
         
-    print("🎉 카드뉴스 제작 완료! 인스타에 올리러 갑시다!")
+    print(f"🎉 카드뉴스 이미지 생성 완료! 파일 경로: {output_image_path}")
+
+    # =========================================================
+    # 🧪 DRY_RUN (테스트 모드) 분기 처리
+    # =========================================================
+    if DRY_RUN:
+        print("\n" + "="*50)
+        print("🧪 [DRY_RUN 완료] 실제 인스타그램에 업로드되지 않았습니다.")
+        print(f"🖼️ 생성된 이미지 위치: {output_image_path}")
+        print(f"🌐 생성된 HTML 위치: {result_path}")
+        print("="*50 + "\n")
+        
+        # (선택 사항) 로컬 환경(Windows/Mac)인 경우 완성된 이미지 자동 실행
+        try:
+            if sys.platform == "win32":
+                os.startfile(output_image_path)
+            elif sys.platform == "darwin": # macOS
+                os.system(f"open '{output_image_path}'")
+        except Exception:
+            pass
+
+        # 테스트 모드이므로 여기서 스크립트 종료
+        sys.exit(0)
+
+    # =========================================================
+    # 🚀 실제 운영 모드 (DRY_RUN = False 인 경우만 아래 실행)
+    # =========================================================
 
     # ☁️ 구글 클라우드 스토리지(GCS) 단일 이미지 업로드
     print("☁️ 구글 클라우드 스토리지(GCS)에 임시 이미지 업로드 중...")
@@ -274,7 +298,6 @@ try:
     caption = f"🍱 {display_date} 오늘의 서일대 학식 안내\n\n오늘의 맛있는 학식 메뉴를 확인해보세요! #서일대 #서일대학교 #학식"
     base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
     
-    # 캐러셀용 복잡한 과정 없이 /media 에 이미지 URL과 캡션을 묶어서 한 번에 요청
     res = requests.post(f"{base_url}/media", data={
         'image_url': IMAGE_URL, 
         'caption': caption,
@@ -293,7 +316,6 @@ try:
         if "id" in publish_res:
             print(f"✨ 인스타그램 단일 이미지 업로드 완료! (Post ID: {publish_res['id']})")
             
-            # 🗑️ 용량 제로화
             print("🗑️ 클라우드 용량 확보를 위해 임시 이미지를 삭제합니다...")
             blob.delete()
             print("✨ GCS 용량 초기화 완료! (언제나 0MB 유지)")
@@ -301,3 +323,6 @@ try:
             print(f"❌ 최종 발행 실패: {publish_res}")
     else:
         print(f"❌ 미디어 컨테이너 생성 실패: {res}")
+
+except Exception as e:
+    print(f"❌ 처리 중 에러 발생: {e}")
