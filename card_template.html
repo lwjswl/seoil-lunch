@@ -54,7 +54,7 @@
             letter-spacing: -1px;
         }
 
-        /* 🍽️ 코너 메뉴 컨테이너 (이 안에서 2~4단 자동 배치) */
+        /* 🍽️ 코너 메뉴 컨테이너 (이 안에서 2~3단 자동 배치) */
         .menu-container {
             display: flex;
             flex-direction: row;
@@ -87,8 +87,8 @@
         .menu-content {
             width: 100%;
             flex: 1;
-            font-size: 42px; /* 기본 폰트 크기 */
-            font-weight: 700;
+            font-size: 48px; /* 10~12글자가 잘 보이도록 고정 사이즈 */
+            font-weight: 500; /* Pretendard Medium 두께로 얇게 변경 */
             color: #000000;
             line-height: 1.5;
             word-break: keep-all;
@@ -106,31 +106,10 @@
         </div>
 
         <div class="menu-container">
-            <!-- 파이썬 코드가 이 위치에 2개~4개의 코너를 동적으로 생성해 밀어넣습니다 -->
+            <!-- 파이썬 코드가 이 위치에 2개~3개의 코너를 동적으로 생성해 밀어넣습니다 -->
             {{MENU_CONTAINERS}}
         </div>
     </div>
 
-    <!-- ⚙️ 동적 생성된 메뉴 길이에 맞춰 폰트 줄이는 JS -->
-    <script>
-        function adjustFontSize() {
-            const containers = document.querySelectorAll('.menu-content');
-            
-            containers.forEach(container => {
-                let fontSize = 42; 
-                const minFontSize = 20; 
-                
-                while (
-                    (container.scrollHeight > container.clientHeight || container.scrollWidth > container.clientWidth) 
-                    && fontSize > minFontSize
-                ) {
-                    fontSize -= 1;
-                    container.style.fontSize = fontSize + 'px';
-                }
-            });
-        }
-
-        window.addEventListener('DOMContentLoaded', adjustFontSize);
-    </script>
 </body>
 </html>
