@@ -3,7 +3,7 @@ name: 서버 자동 실행기
 on:
   schedule:
     - cron: '47 20 * * *'
-  workflow_dispatch: # 이 한 줄을 넣으면 깃허브 사이트에서 수동으로도 즉시 실행 가능해요!
+  workflow_dispatch: # 깃허브 웹 페이지에서 수동으로 즉시 실행 가능
 
 jobs:
   run-crawler:
@@ -30,7 +30,7 @@ jobs:
       run: |
         echo '${{ secrets.GCP_SA_KEY }}' > seoil-hakshikbot-826147efed61.json
 
-    # 5. 내 파이썬 파일 실행하기!
+    # 5. 파이썬 크롤링 및 이미지 생성 스크립트 실행
     - name: Run Python Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -38,3 +38,15 @@ jobs:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
       run: python main.py
+
+    # 6. 생성된 이미지/결과물을 Artifact로 저장 (새로 추가된 부분)
+    - name: 테스트용 이미지 다운로드 링크 생성 (Artifacts)
+      uses: actions/upload-artifact@v4
+      if: always() # 스크립트에 에러가 나더라도 중간 생성물(menu.png 등)을 확인할 수 있게 설정
+      with:
+        name: haksik-test-result
+        path: |
+          inst_feed.png
+          temp_result.html
+          menu.png
+        retention-days: 1 # 저장 용량 관리를 위해 1일 후 자동 삭제
