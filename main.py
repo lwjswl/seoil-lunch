@@ -50,7 +50,7 @@ holiday_params = {
     'serviceKey': DATA_GO_KR_API_KEY,
     'solYear': sol_year,
     'solMonth': sol_month,
-    '_type': 'json' # JSON 타입 요청 (간혹 지원 안 될 때를 대비해 하단에 예외처리 추가)
+    '_type': 'json' 
 }
 
 try:
