@@ -12,7 +12,7 @@
             padding: 0;
         }
 
-        body { 
+    body { 
             font-family: 'Pretendard', sans-serif; 
             -webkit-font-smoothing: antialiased;
             background-color: #f4f4f4;
@@ -41,47 +41,46 @@
         }
 
         .main-title {
-            font-size: 82px;
-            font-weight: 500; /* ← 제목 두께: 800(ExtraBold)에서 500(Medium)으로 변경. 더 얇게 하려면 400(Regular), 조금 더 두껍게 하려면 600(SemiBold) */
+            font-size: 90px;
+            font-weight: 500;
             color: #000000;
             letter-spacing: -2px;
             margin-bottom: 12px;
         }
 
         .date-text {
-            font-size: 46px;
-            font-weight: 500; /* ← 날짜 두께: 700(Bold)에서 500(Medium)으로 변경 */
+            font-size: 35px;
+            font-weight: 500;
             color: #111111;
             letter-spacing: -1px;
         }
 
         /* 🍽️ 코너 메뉴 컨테이너 (이 안에서 2~3단 자동 배치) */
-        .menu-container {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 40px;
-            width: 100%;
-            margin-top: 70px; /* ← 코너 전체를 아래로 내리는 값. 숫자를 키우면 더 아래로, 줄이면 위로 올라감 */
-            height: 780px; /* ← margin-top으로 내린 만큼(70px) 높이를 줄여서 카드 하단으로 넘치지 않도록 맞춤 (기존 850px) */
-        }
+.menu-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 50px;          /* 두 코너 사이 간격 */
+    width: 100%;
+    margin-top: 70px;
+    height: 780px;
+}
 
-        /* 📌 개별 코너 칼럼 (파이썬에서 동적 생성됨) */
-        .corner-column {
-            flex: 1; /* 데이터 개수에 맞춰 자동으로 가로 비율 쪼개기 */
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+.corner-column {
+    flex: 0 0 380px;    /* 420px → 300px로 축소 (핵심) */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
 
         /* 코너 타이틀 */
         .corner-title {
-            font-size: 48px;
-            font-weight: 500; /* ← 코너명 두께: 800(ExtraBold)에서 500(Medium)으로 변경 */
+            font-size: 42px; /* ← 48px에서 축소 */
+            font-weight: 500;
             color: #000000;
-            margin-bottom: 40px;
+            margin-bottom: 28px; /* ← 40px에서 축소, 본문과의 간격을 좁힘 */
             white-space: nowrap;
         }
 
@@ -89,10 +88,10 @@
         .menu-content {
             width: 100%;
             flex: 1;
-            font-size: 48px; /* 10~12글자가 잘 보이도록 고정 사이즈 */
-            font-weight: 500; /* Pretendard Medium 두께로 얇게 변경 */
+            font-size: 38px; /* ← 48px에서 축소해 첫 번째 이미지처럼 여러 줄이 들어가도록 */
+            font-weight: 500;
             color: #000000;
-            line-height: 1.5;
+            line-height: 1.35; /* ← 1.5에서 축소해 줄간격을 더 촘촘하게 */
             word-break: keep-all;
             overflow: hidden;
         }
