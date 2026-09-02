@@ -1,35 +1,28 @@
 name: 서버 자동 실행기
-
 on:
   schedule:
     - cron: '47 20 * * *'
   workflow_dispatch: # 깃허브 웹 페이지에서 수동으로 즉시 실행 가능
-
 jobs:
   run-crawler:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-
+        cache: 'pip'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
     - name: Install Playwright Browsers
-      run: playwright install --with-deps
-
+      run: playwright install chromium --with-deps
     - name: Create GCP Service Account JSON File
       run: |
         echo '${{ secrets.GCP_SA_KEY }}' > seoil-hakshikbot-826147efed61.json
-
     # 5. 파이썬 크롤링 및 이미지 생성 스크립트 실행
     - name: Run Python Script
       env:
@@ -38,7 +31,6 @@ jobs:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         DATA_GO_KR_API_KEY: ${{ secrets.DATA_GO_KR_API_KEY }}
       run: python main.py
-
     # 6. 생성된 이미지/결과물을 Artifact로 저장 (새로 추가된 부분)
     - name: 테스트용 이미지 다운로드 링크 생성 (Artifacts)
       uses: actions/upload-artifact@v4
