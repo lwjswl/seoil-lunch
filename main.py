@@ -294,8 +294,14 @@ try:
 
     # 🚀 인스타그램 Graph API 단일 이미지 업로드
     print("🚀 인스타그램 업로드 프로세스 시작...")
-    caption = f"🍱 {display_date} 오늘의 서일대 학식 안내\n\n오늘의 맛있는 학식 메뉴를 확인해보세요! #서일대 #서일대학교 #학식"
+    
+    # 캡션용 요일 전체 이름
+    weekdays_full = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"]
+    caption_date = f"{today_dt.strftime('%Y년 %m월 %d일')} {weekdays_full[current_weekday_idx]}"
+    caption = f"🍱 {caption_date}\n오늘의 학식입니다!\n#서일 #서일대 #학식"
+
     base_url = f"https://graph.facebook.com/v19.0/{INSTAGRAM_ACCOUNT_ID}"
+
     
     res = requests.post(f"{base_url}/media", data={
         'image_url': IMAGE_URL, 
